@@ -81,7 +81,7 @@ void create_tree(QT *node, int N) {
         QT * child1 = (QT *)malloc(sizeof(QT));
         QT * child2 = (QT *)malloc(sizeof(QT));
         QT * child3 = (QT *)malloc(sizeof(QT));
-        QT * child4 = (QT *)malloc(sizeof(QT));
+        QT * child4 = (QT *)malloc(sizeof(QT)); 
         node->child1 = child1;
         node->child2 = child2;
         node->child3 = child3;
