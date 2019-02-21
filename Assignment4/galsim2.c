@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -17,7 +16,7 @@ typedef struct QuadTree {
         double posy;
         double side;
         int nop;
-        struct particle ** particles;
+        struct particle * particle;
 } QT;
 
 // Global variables
@@ -57,110 +56,120 @@ void pos_update(part** particles, int N, double t) {
 
 }
 void centerOfMass(QT * node, int N){
-    double mass = 0;
+    /*double mass = 0;
     double x = 0;
     double y = 0;
-    if(N == 0) {
-        node->C_O_x = 0;
-        node->C_O_x = 0;
 
-    }else {
-
-        for(int i=0; i<N; i++) {
-            mass += node->particles[i]->mass;
-            x += node->particles[i]->mass*node->particles[i]->x;
-            y += node->particles[i]->mass*node->particles[i]->y;
-        }
-        node->C_O_x = x/(mass);
-        node->C_O_y = y/(mass);
-        node->mass = mass;
-    } 
+    for(int i=0; i<N; i++) {
+        mass += node->particles[i]->mass;
+        x += node->particles[i]->mass*node->particles[i]->x;
+        y += node->particles[i]->mass*node->particles[i]->y;
+    }
+    node->C_O_x = x/(mass);
+    node->C_O_y = y/(mass);
+*/
+    node->C_O_x = 0.5;
+    node->C_O_y = 0.5;
 }
 
-void create_tree(QT *node, int N) {
-        QT * child1 = (QT *)malloc(sizeof(QT));
-        QT * child2 = (QT *)malloc(sizeof(QT));
-        QT * child3 = (QT *)malloc(sizeof(QT));
-        QT * child4 = (QT *)malloc(sizeof(QT)); 
-        node->child1 = child1;
-        node->child2 = child2;
-        node->child3 = child3;
-        node->child4 = child4;
-        child1->mass = 0;
-        child2->mass = 0;
-        child3->mass = 0;
-        child4->mass = 0;
+void create_tree(QT *node, int N, part ** array) {
+
+        if(N == 1) {
+            node->particle = array[0];
+            node->C_O_x = node->particle->x;
+            node->C_O_y = node->particle->x;
+            node->mass = node->particle->mass;
+            return;
+        }
+        
         int count1 = 0;
         int count2 = 0;
         int count3 = 0;
         int count4 = 0;
+        double child1_mass = 0;
+        double child2_mass = 0;
+        double child3_mass = 0;
+        double child4_mass = 0;
         double new_side = node->side/2;
-        double posx = node->posx;
-        double posy = node->posy;
-        node->child1->side = new_side;
-        node->child1->posx = posx-new_side/2;
-        node->child1->posy = posy-new_side/2;
-        node->child2->side = new_side;
-        node->child2->posx = posx + new_side/2;
-        node->child2->posy = posy - new_side/2;
-        node->child3->side = new_side;
-        node->child3->posx = posx - new_side/2;
-        node->child3->posy = posy + new_side/2;
-        node->child4->side = new_side;
-        node->child4->posx = posx + new_side/2;
-        node->child4->posy = posy + new_side/2;
-        
-        part **part1 = (part**)malloc(N*sizeof(part*));
-        part **part2 = (part**)malloc(N*sizeof(part*));
-        part **part3 = (part**)malloc(N*sizeof(part*));
-        part **part4 = (part**)malloc(N*sizeof(part*));
 
+        part *part1[N];
+        part *part2[N];
+        part *part3[N];
+        part *part4[N];
 
-
-        for(int i=0; i<N; i++) {
-            if(node->particles[i]->y <= posy) {
-                if(node->particles[i]->x <= posx) {
-                    part1[count1] = node->particles[i];
+        for (int i=0; i<N; i++) {
+            if(array[i]->y <= node->posy){
+                if(array[i]->x <= node->posx) {
+                    part1[count1] = array[i];
+                    child1_mass += array[i]->mass;
                     count1++;
-                } else {
-                    part2[count2] = node->particles[i];
+                } 
+                else {
+                    part2[count2] = array[i];
+                    child2_mass += array[i]->mass;
                     count2++;
                 }
-            } else {
-                if(node->particles[i]->x <= posx) {
-                    part3[count3] = node->particles[i];
+            } 
+            else {
+                if(array[i]->x <= node->posx) {
+                    part3[count3] = array[i];
+                    child3_mass += array[i]->mass;
                     count3++;    
                 } else {
-                    part4[count4] = node->particles[i];
+                    part4[count4] = array[i];
+                    child3_mass += array[i]->mass;
                     count4++;
                 }
             }
         }
-        node->child1->particles = part1;
-        node->child2->particles = part2;
-        node->child3->particles = part3;
-        node->child4->particles = part4;
-        node->child1->nop = count1;
-        node->child2->nop = count2;
-        node->child3->nop = count3;
-        node->child4->nop = count4;
-        
-        centerOfMass(node->child1, count1);
-        centerOfMass(node->child2, count2);
-        centerOfMass(node->child3, count3);
-        centerOfMass(node->child4, count4);
-        
-        if(count1 > 1) {
-            create_tree(node->child1, count1);
+
+        if(count1 >= 1) {
+            QT * child1 = (QT*)malloc(sizeof(QT));
+            node->child1 = child1;
+            node->child1->side = new_side;
+            node->child1->posx = node->posx-new_side/2;
+            node->child1->posy = node->posy-new_side/2;
+            node->child1->nop = count1;
+            node->child1->mass = child1_mass;
+            create_tree(node->child1, count1, part1);
+            centerOfMass(node, count1);
+
         }
-        if(count2 > 1) {
-            create_tree(node->child2, count2);
+        if(count2 >= 1) {
+            QT * child2 = (QT*)malloc(sizeof(QT));
+            node->child2 = child2;
+            node->child2->side = new_side;
+            node->child2->posx = node->posx + new_side/2;
+            node->child2->posy = node->posy - new_side/2;
+            node->child2->nop = count2;
+            node->child2->mass = child2_mass;                                        
+            create_tree(node->child2, count2, part2);
+            
+            
+            centerOfMass(node, count2);            
         }
-        if(count3 > 1) {
-            create_tree(node->child3, count3);
+        if(count3 >= 1) {
+            QT * child3 = (QT*)malloc(sizeof(QT));
+            node->child3 = child3;
+            node->child3->side = new_side;
+            node->child3->posx = node->posx - new_side/2;
+            node->child3->posy = node->posy + new_side/2;
+            node->child3->nop = count3;
+            node->child3->mass = child3_mass;
+            create_tree(node->child3, count3, part3);
+            centerOfMass(node, count3);
         }
-        if(count4 > 1) {
-            create_tree(node->child4, count4);
+        if(count4 >= 1) {
+            QT * child4 = (QT*)malloc(sizeof(QT));
+            node->child4 = child4;            
+            node->child4->side = new_side;
+            node->child4->posx = node->posx + new_side/2;
+            node->child4->posy = node->posy + new_side/2;
+            node->child4->nop = count4;
+            node->child4->mass = child4_mass;
+            create_tree(node->child4, count4, part4);
+            centerOfMass(node, count4);            
+            
         }
     
 }
@@ -182,10 +191,8 @@ void free_tree(QT * node){
 }
 
 void force(part * particle, QT * node, double theta, double G){
-    if(node->nop == 0) {
-        return;
-    }
-    else if(particle->x == node->C_O_x && particle->y == node->C_O_y) {
+
+    if(particle->x == node->C_O_x && particle->y == node->C_O_y) {
         return;
     }
     else if(node->nop ==1) {
@@ -210,7 +217,7 @@ void force(part * particle, QT * node, double theta, double G){
         particle->y_force += forcey;
         return;
     }
-    double theta_comp = (node->side)/sqrt((node->posx -particle->x)*(node->posx -particle->x) + (node->posy -particle->y)*(node->posy -particle->y));
+    double theta_comp = (node->side)/(sqrt((node->posx -particle->x)*(node->posx -particle->x) + (node->posy -particle->y)*(node->posy -particle->y)));
     if(theta_comp<= theta) {
         
         //double r  = sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y));
@@ -244,9 +251,6 @@ void force(part * particle, QT * node, double theta, double G){
         return;
     }
 }
-
-
-
 
 
 int main(int argc, char* argv[]) {
@@ -312,9 +316,8 @@ int main(int argc, char* argv[]) {
             root->posx = 0.5;
             root->posy = 0.5;
             root->side = 1;
-            root->particles = array;
     
-            create_tree(root, N);
+            create_tree(root, N, array);
             //printf("Loop nr --- %d\n", t);
             for(int i = 0; i < N; i++)  
             {
@@ -344,10 +347,9 @@ int main(int argc, char* argv[]) {
             root->posx = 0.5;
             root->posy = 0.5;
             root->side = 1;
-            root->particles = array;
             root->nop = N;
             //printf("Loop nr %d \n", t);
-            create_tree(root, N);
+            create_tree(root, N, array);
             //printf("Loop nr --- %d\n", t);
             for(int i = 0; i < N; i++)  
             {   
@@ -361,7 +363,7 @@ int main(int argc, char* argv[]) {
             pos_update(array, N, delta_t);
             //printf("x pos after pos update -- %lf \n", array[0]->x);
             t +=1;
-            free_tree(root);
+            //free_tree(root);
             //printf("x pos after pos update free -- %lf \n", array[0]->x);
             
         }                                
