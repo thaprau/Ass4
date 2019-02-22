@@ -61,11 +61,14 @@ void centerOfMass(QT * node, int N){
     double x = 0;
     double y = 0;
     if(N == 0) {
-        node->C_O_x = 0;
-        node->C_O_x = 0;
-
-    }else {
-
+        return;
+    }
+    else if(N==1) {
+        node->C_O_x = node->particles[0]->x;
+        node->C_O_y = node->particles[0]->y;
+        node->mass = node->particles[0]->mass;                          
+    }
+    else {
         for(int i=0; i<N; i++) {
             mass += node->particles[i]->mass;
             x += node->particles[i]->mass*node->particles[i]->x;
@@ -77,7 +80,7 @@ void centerOfMass(QT * node, int N){
     } 
 }
 
-void create_tree(QT *node, int N) {
+void create_tree(QT * node, int N) {
         QT * child1 = (QT *)malloc(sizeof(QT));
         QT * child2 = (QT *)malloc(sizeof(QT));
         QT * child3 = (QT *)malloc(sizeof(QT));
@@ -109,12 +112,11 @@ void create_tree(QT *node, int N) {
         node->child4->side = new_side;
         node->child4->posx = posx + new_side/2;
         node->child4->posy = posy + new_side/2;
-        
-        part **part1 = (part**)malloc(N*sizeof(part*));
-        part **part2 = (part**)malloc(N*sizeof(part*));
-        part **part3 = (part**)malloc(N*sizeof(part*));
-        part **part4 = (part**)malloc(N*sizeof(part*));
-
+                
+        part *part1[N];
+        part *part2[N];
+        part *part3[N];
+        part *part4[N];
 
 
         for(int i=0; i<N; i++) {
@@ -167,73 +169,56 @@ void create_tree(QT *node, int N) {
 
 void free_tree(QT * node){
     if(node->nop <=1) {
-        //free(node->particles);
-        free(node);
         return;
     }
     else {
+
         free_tree(node->child1);
         free_tree(node->child2);
         free_tree(node->child3);
         free_tree(node->child4);
-        //free(node->particles);
-        free(node);
+        free(node->child1);
+        free(node->child2);
+        free(node->child3);
+        free(node->child4);
+        node->child1 = NULL;
+        node->child2 = NULL;
+        node->child3 = NULL;
+        node->child4 = NULL;
+        return;
     }
 }
 
-void force(part * particle, QT * node, double theta, double G){
+void force(part * particle, QT * restrict node, double theta, double G){
     if(node->nop == 0) {
         return;
     }
-    else if(particle->x == node->C_O_x && particle->y == node->C_O_y) {
-        return;
-    }
-    else if(node->nop ==1) {
-        //double r  = sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y));
+    else if(node->nop == 1) {
 
-        //double forcex = - G * (particle->mass) * (node->mass) * ((particle->x) - (node->C_O_x)) /(
-        //(r + epsilon)*(r + epsilon)*(r + epsilon));
         double denomerator = (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon);
         double constant = - G * (particle->mass) * (node->mass)  /denomerator;
         
-        //(
-        //(r + epsilon)*(r + epsilon)*(r + epsilon)); 
-        //double test = (particle->x - node->C_O_x);
         double forcex = (particle->x - node->C_O_x) * constant;
-        //double forcey = - G * (particle->mass) * (node->mass) * ((particle->y) - (node->C_O_y)) /(
-        //(r + epsilon)*(r + epsilon)*(r + epsilon));
-        double forcey = (particle->y - node->C_O_y) * constant;
+        double forcey = (particle->y - node->C_O_y)* constant;
 
         particle->x_force += forcex;
         particle->y_force += forcey;
         return;
     }
     double theta_comp = (node->side)/sqrt((node->posx -particle->x)*(node->posx -particle->x) + (node->posy -particle->y)*(node->posy -particle->y));
-    if(theta_comp<= theta) {
+    if(theta_comp <= theta) {
         
-        //double r  = sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y));
-
         double denomerator = (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon);
         
-        double forcex = - G * (particle->mass) * (node->mass) * ((particle->x) - (node->posx)) / denomerator;
-        
-        //(
-        //(sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
-        //(sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
-        //(sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon));
-        double forcey = - G * (particle->mass) * (node->mass) * ((particle->y) - (node->posy)) / denomerator;
-        //
-        //(sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
-        //(sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
-        //(sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon));
+        double forcex = - G * (particle->mass) * (node->mass) * ((particle->x) - (node->C_O_x)) / denomerator;
+        double forcey = - G * (particle->mass) * (node->mass) * ((particle->y) - (node->C_O_y)) / denomerator;
 
         particle->x_force += forcex;
         particle->y_force += forcey;
-        
         return;
     }
     else {
@@ -244,10 +229,6 @@ void force(part * particle, QT * node, double theta, double G){
         return;
     }
 }
-
-
-
-
 
 int main(int argc, char* argv[]) {
 
@@ -271,8 +252,8 @@ int main(int argc, char* argv[]) {
         array[i] = (part*) malloc(sizeof(part));
     }
 
+
     // Read file
-    
     FILE * fp = fopen(filename, "r");
 
     for(int i = 0; i < N; i++)
@@ -290,10 +271,6 @@ int main(int argc, char* argv[]) {
 
     fclose(fp);
 
-
-
-
-
     // Prepare for the loop
     int t = 0;
     const double G = (double) 100/N;
@@ -301,36 +278,37 @@ int main(int argc, char* argv[]) {
     const float L = 1;
 
     // Loop with graphics
+    
     if(graphics==1) {
         InitializeGraphics(argv[0], 800, 800);
         SetCAxes(0,1);
 
-        while(t <= nsteps){
+        QT * root = (QT*)malloc(sizeof(QT));
+        root->posx = 0.5;
+        root->posy = 0.5;
+        root->side = 1;
+        root->particles = array;
+        root->nop = N;
+        while(t < nsteps){
             ClearScreen();
-
-            QT * root = (QT*)malloc(sizeof(QT));
-            root->posx = 0.5;
-            root->posy = 0.5;
-            root->side = 1;
-            root->particles = array;
     
             create_tree(root, N);
-            //printf("Loop nr --- %d\n", t);
+           
             for(int i = 0; i < N; i++)  
             {
                 DrawCircle(array[i]->x, array[i]->y, W, L, 0.01, 0);
                 force(array[i], root, theta_max, G);
-            //printf("particle nr %d force y : %lf\n", i, array[i]->y_force);
             }
             vel_update(array, N, delta_t);
-            pos_update(array, N, delta_t);
-            t +=1;  
+            pos_update(array, N, delta_t); 
             
             Refresh();
             usleep(3000);
 
             t+=1;
+            free_tree(root);
         }
+        free(root);
         FlushDisplay();
         CloseDisplay();
     }
@@ -338,33 +316,33 @@ int main(int argc, char* argv[]) {
     // Loop without graphics
     else {
 
-            
-        while(t < nsteps){
             QT * root = (QT*)malloc(sizeof(QT));
             root->posx = 0.5;
             root->posy = 0.5;
             root->side = 1;
             root->particles = array;
             root->nop = N;
-            //printf("Loop nr %d \n", t);
+        while(t < nsteps){
+            
             create_tree(root, N);
-            //printf("Loop nr --- %d\n", t);
+            
             for(int i = 0; i < N; i++)  
             {   
-                //printf("PARICLE NUMER ----------------- %d\n", i);
-                //printf("x pos -- %lf \n", array[i]->x);
+                
                 force(array[i], root, theta_max, G);
-                //printf("force %lf \n", array[i]->x_force);
-            //printf("particle nr %d force y : %lf\n", i, array[i]->y_force);
+               
+            
             }
+            //printf("First paricle force %lf \n", array[0]->x_force);
             vel_update(array, N, delta_t);
             pos_update(array, N, delta_t);
-            //printf("x pos after pos update -- %lf \n", array[0]->x);
+            
             t +=1;
             free_tree(root);
-            //printf("x pos after pos update free -- %lf \n", array[0]->x);
             
-        }                                
+            
+        } 
+        free(root);                               
     }
 
     // Writing to new file
@@ -383,10 +361,11 @@ int main(int argc, char* argv[]) {
     
     fclose(pw);
 
-    for(int i = 0; i < N; i++)
+    for(int i = 0; i < N-1; i++)
     {
         free(array[i]);
     }
     free(array);
+    
 return 0;
 }
