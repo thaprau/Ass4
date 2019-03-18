@@ -5,8 +5,27 @@
 #include "graphics/graphics.h"
 #include <pthread.h>
 
+typedef struct QuadTree {
+        struct QuadTree *child1;
+        struct QuadTree *child2;
+        struct QuadTree *child3;
+        struct QuadTree *child4;
+        double mass;
+        double C_O_x;
+        double C_O_y;
+        double posx;
+        double posy;
+        double side;
+        int nop;
+        struct particle ** particles;
+} QT;
+
+// Global variables
+const double epsilon = 0.001;
+
+
 // Struct desrcibing a particle
-typedef struct part {
+typedef struct particle {
     double x_force;
     double y_force;
     double x;
@@ -16,25 +35,6 @@ typedef struct part {
     double y_vel;
     double brightness;
 } part;
-
-typedef struct QT {
-        struct QT *child1;
-        struct QT *child2;
-        struct QT *child3;
-        struct QT *child4;
-        double mass;
-        double C_O_x;
-        double C_O_y;
-        double posx;
-        double posy;
-        double side;
-        int nop;
-        struct part ** particles;
-} QT;
-
-
-
-
 
 
 void vel_update(part** particles, int N, double t) {
@@ -56,108 +56,113 @@ void pos_update(part** particles, int N, double t) {
     }
 
 }
-void centerOfMass(QT * node){
+void centerOfMass(QT * node, int N){
     double mass = 0;
     double x = 0;
     double y = 0;
-    for(int i=0; i<node->nop; i++) {
-        x += node->particles[i]->mass*node->particles[i]->x;
-        y += node->particles[i]->mass*node->particles[i]->y;
-        mass += node->particles[i]->mass;
+    if(N == 0) {
+        return;
+    }
+    else if(N==1) {
+        node->C_O_x = node->particles[0]->x;
+        node->C_O_y = node->particles[0]->y;
+        node->mass = node->particles[0]->mass;                          
+    }
+    else {
+        for(int i=0; i<N; i++) {
+            mass += node->particles[i]->mass;
+            x += node->particles[i]->mass*node->particles[i]->x;
+            y += node->particles[i]->mass*node->particles[i]->y;
         }
-    node->C_O_x = x/(mass);
-    node->C_O_y = y/(mass);
-    node->mass = mass;
+        node->C_O_x = x/(mass);
+        node->C_O_y = y/(mass);
+        node->mass = mass;
     } 
+}
 
-void create_tree(QT * node) {
-
+void create_tree(QT * node, int N) {
         QT * child1 = (QT *)malloc(sizeof(QT));
         QT * child2 = (QT *)malloc(sizeof(QT));
         QT * child3 = (QT *)malloc(sizeof(QT));
-        QT * child4 = (QT *)malloc(sizeof(QT));
-
-        double new_side = (node->side)/2;
-        double posx = (node->posx);
-        double posy = (node->posy);
-
+        QT * child4 = (QT *)malloc(sizeof(QT)); 
         node->child1 = child1;
         node->child2 = child2;
         node->child3 = child3;
         node->child4 = child4;
-
-        node->child1->side = new_side;
-        node->child1->posx = posx-new_side/2;
-        node->child1->posy = posy-new_side/2;
-
-        node->child2->side = new_side;
-        node->child2->posx = posx + new_side/2;
-        node->child2->posy = posy - new_side/2;
-
-        node->child3->side = new_side;
-        node->child3->posx = posx - new_side/2;
-        node->child3->posy = posy + new_side/2;
-
-        node->child4->side = new_side;
-        node->child4->posx = posx + new_side/2;
-        node->child4->posy = posy + new_side/2;
-                
-        
-        part **part1=(part**)malloc((node->nop)*sizeof(part*));
-        part **part2=(part**)malloc((node->nop)*sizeof(part*));
-        part **part3=(part**)malloc((node->nop)*sizeof(part*));
-        part **part4=(part**)malloc((node->nop)*sizeof(part*));
-
+        child1->mass = 0;
+        child2->mass = 0;
+        child3->mass = 0;
+        child4->mass = 0;
         int count1 = 0;
         int count2 = 0;
         int count3 = 0;
         int count4 = 0;
+        double new_side = node->side/2;
+        double posx = node->posx;
+        double posy = node->posy;
+        node->child1->side = new_side;
+        node->child1->posx = posx-new_side/2;
+        node->child1->posy = posy-new_side/2;
+        node->child2->side = new_side;
+        node->child2->posx = posx + new_side/2;
+        node->child2->posy = posy - new_side/2;
+        node->child3->side = new_side;
+        node->child3->posx = posx - new_side/2;
+        node->child3->posy = posy + new_side/2;
+        node->child4->side = new_side;
+        node->child4->posx = posx + new_side/2;
+        node->child4->posy = posy + new_side/2;
+                
+        part *part1[N];
+        part *part2[N];
+        part *part3[N];
+        part *part4[N];
 
-        for(int i=0; i<node->nop; i++) {
-            if(node->particles[i]->x < posx) {
-                if(node->particles[i]->y < posy) {
+
+        for(int i=0; i<N; i++) {
+            if(node->particles[i]->y <= posy) {
+                if(node->particles[i]->x <= posx) {
                     part1[count1] = node->particles[i];
                     count1++;
                 } else {
-                    part3[count3] = node->particles[i];
-                    count3++;
+                    part2[count2] = node->particles[i];
+                    count2++;
                 }
             } else {
-                if(node->particles[i]->y < posy) {
-                    part2[count2] = node->particles[i]; 
-                    count2++;   
+                if(node->particles[i]->x <= posx) {
+                    part3[count3] = node->particles[i];
+                    count3++;    
                 } else {
                     part4[count4] = node->particles[i];
                     count4++;
                 }
             }
         }
-        
         node->child1->particles = part1;
         node->child2->particles = part2;
         node->child3->particles = part3;
         node->child4->particles = part4;
-
         node->child1->nop = count1;
         node->child2->nop = count2;
         node->child3->nop = count3;
         node->child4->nop = count4;
         
+        centerOfMass(node->child1, count1);
+        centerOfMass(node->child2, count2);
+        centerOfMass(node->child3, count3);
+        centerOfMass(node->child4, count4);
+        
         if(count1 > 1) {
-            centerOfMass(node->child1);
-            create_tree(node->child1);
+            create_tree(node->child1, count1);
         }
         if(count2 > 1) {
-            centerOfMass(node->child2);
-            create_tree(node->child2);
+            create_tree(node->child2, count2);
         }
         if(count3 > 1) {
-            centerOfMass(node->child3);
-            create_tree(node->child3);
+            create_tree(node->child3, count3);
         }
         if(count4 > 1) {
-            centerOfMass(node->child4);
-            create_tree(node->child4);
+            create_tree(node->child4, count4);
         }
     
 }
@@ -176,54 +181,27 @@ void free_tree(QT * node){
         free(node->child2);
         free(node->child3);
         free(node->child4);
+        node->child1 = NULL;
+        node->child2 = NULL;
+        node->child3 = NULL;
+        node->child4 = NULL;
         return;
     }
 }
 
-void force(part * p, QT * restrict n, double theta_max, double G){
-    double x = 0;
-    double y = 0;
-    const double epsilon = 0.001;
-    if(n->nop == 0) {
+void force(part * particle, QT * restrict node, double theta, double G){
+    if(node->nop == 0) {
         return;
-    }    
-    if(n->nop>1){
-		double dnodecenter=sqrt((((p->x)-(n->posx))*((p->x)-(n->posx)))+(((p->y)-(n->posy))*((p->y)-(n->posy))));
-		double theta=(n->side)/dnodecenter;
-
-
-		if(theta<=theta_max){
-			double dmasscenter= sqrt((((p->x)-(n->C_O_x))*((p->x)-(n->C_O_x)))+(((p->y)-(n->C_O_y))*((p->y)-(n->C_O_y))));
-			x= (-G*(p->mass) * (n->mass) * ((p->x)-(n->C_O_x)))/((dmasscenter+epsilon)*(dmasscenter+epsilon)*(dmasscenter+epsilon));
-			y= (-G*(p->mass) * (n->mass) * ((p->y)-(n->C_O_y)))/((dmasscenter+epsilon)*(dmasscenter+epsilon)*(dmasscenter+epsilon));
-			p->x_force=p->x_force+x;
-			p->y_force=p->y_force+y;
-			return;
-		}else{
-			force(p,n->child1,G,theta_max);
-			force(p,n->child2,G,theta_max);
-			force(p,n->child3,G,theta_max);
-			force(p,n->child4,G,theta_max);
-		}
-	}
-	else if (n->nop==1 && p->x !=n->C_O_x){
-			double dmasscenter= sqrt(((p->x)-(n->particles[0]->x))*((p->x)-(n->particles[0]->x))+((p->y)-(n->particles[0]->y))*((p->y)-(n->particles[0]->y)));
-			x= -G*(p->mass) * (n->particles[0]->mass) * ((p->x)-(n->particles[0]->x))/((dmasscenter+epsilon)*(dmasscenter+epsilon)*(dmasscenter+epsilon));
-			y= -G*(p->mass) * (n->particles[0]->mass) * ((p->y)-(n->particles[0]->y))/((dmasscenter+epsilon)*(dmasscenter+epsilon)*(dmasscenter+epsilon));
-			p->x_force +=x;
-			p->y_force += y;
-	}
-
-}
-    /*else if(node->nop == 1) {
+    }
+    else if(node->nop == 1) {
 
         double denomerator = (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon);
         double constant = - G * (particle->mass) * (node->mass)  /denomerator;
         
-        forcex = (particle->x - node->C_O_x) * constant;
-        forcey = (particle->y - node->C_O_y)* constant;
+        double forcex = (particle->x - node->C_O_x) * constant;
+        double forcey = (particle->y - node->C_O_y)* constant;
 
         particle->x_force += forcex;
         particle->y_force += forcey;
@@ -231,40 +209,27 @@ void force(part * p, QT * restrict n, double theta_max, double G){
     }
     double theta_comp = (node->side)/sqrt((node->posx -particle->x)*(node->posx -particle->x) + (node->posy -particle->y)*(node->posy -particle->y));
     if(theta_comp <= theta) {
-
-                double denomerator = (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
-        (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
-        (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon);
-        double constant = - G * (particle->mass) * (node->mass)  /denomerator;
         
-        forcex = (particle->x - node->C_O_x) * constant;
-        forcey = (particle->y - node->C_O_y)* constant;
-
-        particle->x_force += forcex;
-        particle->y_force += forcey;
-        return;*/
-
-
-        /*
         double denomerator = (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon)*
         (sqrt((particle->x-node->C_O_x)*(particle->x-node->C_O_x) + (particle->y-node->C_O_y)*(particle->y-node->C_O_y)) + epsilon);
         
-        forcex = - G * (particle->mass) * (node->mass) * ((particle->x) - (node->C_O_x)) / denomerator;
-        forcey = - G * (particle->mass) * (node->mass) * ((particle->y) - (node->C_O_y)) / denomerator;
+        double forcex = - G * (particle->mass) * (node->mass) * ((particle->x) - (node->C_O_x)) / denomerator;
+        double forcey = - G * (particle->mass) * (node->mass) * ((particle->y) - (node->C_O_y)) / denomerator;
 
         particle->x_force += forcex;
         particle->y_force += forcey;
-        return;*/
-    //}
-    /*else {
+        return;
+    }
+    else {
         force(particle, node->child1, theta, G);
         force(particle, node->child2, theta, G);
         force(particle, node->child3, theta, G);
         force(particle, node->child4, theta, G);
         return;
     }
-}*/
+}
+
 
 int main(int argc, char* argv[]) {
 
@@ -281,35 +246,34 @@ int main(int argc, char* argv[]) {
     const int graphics = atoi(argv[6]);
 
 
-    // Creates array to store particles
-    part **array = (part**) malloc(N*sizeof(part*));
-    for(int i = 0; i < N; i++)
-    {
-        array[i] = (part*) malloc(sizeof(part));
-    }
+     // Creates array to store particles
+    struct particle **array = (part**) malloc(N*sizeof(part*));
 
+    FILE *input = fopen(filename, "r");
+    
+	for (int i =0; i<N; i++){
+		double attr[6] = {0}; //compiler will set all values to zero
+		fread(attr,sizeof(double),6,input);
+		array[i] = (part*)malloc(sizeof(part));
+		array[i]->x = attr[0];
+		array[i]->y = attr[1];
+		array[i]->mass = attr[2];
+		array[i]->x_vel = attr[3];
+		array[i]->y_vel = attr[4];
+		array[i]->brightness = attr[5];
+		array[i]->x_force = 0;
+		array[i]->y_force = 0;
+	}
+		fclose(input);
+
+
+
+   
 
 
     // Read file
-    FILE * fp = fopen(filename, "r");
-
-    for(int i = 0; i < N; i++)
-    {
-
-        fread(&(array[i]->x), sizeof(double), 1, fp);
-        fread(&(array[i]->y), sizeof(double), 1, fp);
-        fread(&(array[i]->mass), sizeof(double), 1, fp);
-        fread(&(array[i]->x_vel), sizeof(double), 1, fp);
-        fread(&(array[i]->y_vel), sizeof(double), 1, fp);
-        fread(&(array[i]->brightness), sizeof(double), 1, fp);
-        array[i]->x_force = 0;
-        array[i]->y_force = 0;
 
 
-    }
-
-
-    fclose(fp);
 
     // Prepare for the loop
     int t = 0;
@@ -329,11 +293,10 @@ int main(int argc, char* argv[]) {
         root->side = 1;
         root->particles = array;
         root->nop = N;
-        centerOfMass(root);
         while(t < nsteps){
             ClearScreen();
     
-            create_tree(root);
+            create_tree(root, N);
            
             for(int i = 0; i < N; i++)  
             {
@@ -354,35 +317,36 @@ int main(int argc, char* argv[]) {
         CloseDisplay();
     }
 
-
     // Loop without graphics
     else {
-        QT * root = (QT *)malloc(sizeof(QT));
-        root->posx = 0.5;
-        root->posy = 0.5;
-        root->side = 1;
-        root->particles = array;
-        root->nop = N;
-        centerOfMass(root);
 
+            QT * root = (QT*)malloc(sizeof(QT));
+            root->posx = 0.5;
+            root->posy = 0.5;
+            root->side = 1;
+            root->particles = array;
+            root->nop = N;
         while(t < nsteps){
             
-            create_tree(root);
-            
+            create_tree(root, N);
             
             for(int i = 0; i < N; i++)  
             {   
+                
                 force(array[i], root, theta_max, G);
-            } //partnew
+               
+            
+            }
             //printf("First paricle force %lf \n", array[0]->x_force);
             vel_update(array, N, delta_t);
             pos_update(array, N, delta_t);
             
             t +=1;
+            free_tree(root);
             
-            free_tree(root); 
+            
         } 
-       free(root);                              
+        free(root);                               
     }
 
     // Writing to new file
@@ -400,7 +364,7 @@ int main(int argc, char* argv[]) {
     }
     
     fclose(pw);
- 
+
     for(int i = 0; i < N; i++)
     {
         free(array[i]);

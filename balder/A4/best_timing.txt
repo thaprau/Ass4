@@ -1,0 +1,3 @@
+4.216
+intel core i7-8550u 1.8GHz 8M cache
+0.252
